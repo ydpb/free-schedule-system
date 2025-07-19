@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>完全免费排班系统</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .tab {
+            overflow: hidden;
+            border: 1px solid #ccc;
+            background-color: #f1f1f1;
+            border-radius: 5px 5px 0 0;
+        }
+        .tab button {
+            background-color: inherit;
+            float: left;
+            border: none;
+            outline: none;
+            cursor: pointer;
+            padding: 10px 16px;
+            transition: 0.3s;
+        }
+        .tab button:hover {
+            background-color: #ddd;
+        }
+        .tab button.active {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .tabcontent {
+            display: none;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-top: none;
+            border-radius: 0 0 5px 5px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .group-container {
+            display: flex;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .group-list {
+            flex: 1;
+            min-width: 150px;
+            margin: 0 10px 10px 0;
+            border: 1px solid #ddd;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .staff-item {
+            padding: 5px;
+            margin: 3px 0;
+            background-color: #f9f9f9;
+            cursor: pointer;
+        }
+        .staff-item:hover {
+            background-color: #e9e9e9;
+        }
+        .selected-staff {
+            background-color: #d4edda;
+        }
+        .unavailable {
+            text-decoration: line-through;
+            color: #999;
+        }
+        .job-assignment {
+            margin: 10px 0;
+            padding: 10px;
+            background-color: #f0f8ff;
+            border-radius: 5px;
+        }
+        .login-form {
+            max-width: 400px;
+            margin: 0 auto;
+            padding: 20px;
+            background: white;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .login-form input {
+            width: 100%;
+            padding: 8px;
+            margin: 8px 0;
+            box-sizing: border-box;
+        }
+        .login-form button {
+            width: 100%;
+            padding: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="login-section" class="login-form">
+            <h2 style="text-align: center;">排班系统登录</h2>
+            <div>
+                <label for="username">用户名:</label>
+                <input type="text" id="username" required placeholder="输入用户名">
+            </div>
+            <div>
+                <label for="password">密码:</label>
+                <input type="password" id="password" required placeholder="输入密码">
+            </div>
+            <button onclick="login()">登录</button>
+            <p style="text-align: center; margin-top: 20px;">
+                首次使用？任意用户名密码即可登录
+            </p>
+        </div>
+
+        <div id="app-section" style="display:none;">
+            <div class="tab">
+                <button class="tablinks active" onclick="openTab(event, 'schedule')">排班</button>
+                <button class="tablinks" onclick="openTab(event, 'tasks')">工作任务</button>
+                <button class="tablinks" onclick="openTab(event, 'stats')">统计</button>
+                <button class="tablinks" onclick="logout()" style="float: right;">退出</button>
+            </div>
+
+            <div id="schedule" class="tabcontent" style="display:block;">
+                <h2>排班管理</h2>
+                <div>
+                    <label for="schedule-date">日期:</label>
+                    <input type="date" id="schedule-date">
+                    <button onclick="loadSchedule()">加载</button>
+                    <button onclick="saveSchedule()">保存</button>
+                </div>
+                
+                <h3>选择人员</h3>
+                <div class="group-container">
+                    <div class="group-list" id="group1">
+                        <h4>一组</h4>
+                    </div>
+                    <div class="group-list" id="group2">
+                        <h4>二组</h4>
+                    </div>
+                    <div class="group-list" id="group3">
+                        <h4>三组</h4>
+                    </div>
+                    <div class="group-list" id="support-group">
+                        <h4>辅助人员</h4>
+                    </div>
+                    <div class="group-list" id="support-team">
+                        <h4>支援人员</h4>
+                    </div>
+                </div>
+                
+                <div>
+                    <h3>已选人员: <span id="selected-count">0</span>人</h3>
+                    <div id="selected-staff" style="display: flex; flex-wrap: wrap;"></div>
+                </div>
+                
+                <div>
+                    <h3>排班设置</h3>
+                    <div>
+                        <label>班次:</label>
+                        <select id="shift-type" onchange="loadJobTemplates()">
+                            <option value="out">出班</option>
+                            <option value="in">入班</option>
+                            <option value="morning">隔天早班</option>
+                        </select>
+                    </div>
+                    
+                    <div id="job-templates"></div>
+                    
+                    <div>
+                        <h4>工作任务</h4>
+                        <textarea id="daily-task" rows="3" style="width: 100%;"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tasks" class="tabcontent">
+                <h2>工作任务管理</h2>
+                <div>
+                    <h3>周期性任务设置</h3>
+                    <div>
+                        <label for="task-name">任务名称:</label>
+                        <input type="text" id="task-name" style="width: 100%; padding: 8px;">
+                    </div>
+                    <div style="margin: 10px 0;">
+                        <label>重复周期:</label><br>
+                        <label><input type="checkbox" name="task-day" value="1"> 周一</label>
+                        <label><input type="checkbox" name="task-day" value="2"> 周二</label>
+                        <label><input type="checkbox" name="task-day" value="3"> 周三</label>
+                        <label><input type="checkbox" name="task-day" value="4"> 周四</label>
+                        <label><input type="checkbox" name="task-day" value="5"> 周五</label>
+                        <label><input type="checkbox" name="task-day" value="6"> 周六</label>
+                        <label><input type="checkbox" name="task-day" value="0"> 周日</label>
+                    </div>
+                    <div>
+                        <label for="required-staff">需要人数:</label>
+                        <input type="number" id="required-staff" min="1" value="1" style="padding: 8px;">
+                    </div>
+                    <div>
+                        <label for="task-reminder">提醒内容:</label>
+                        <textarea id="task-reminder" rows="2" style="width: 100%;"></textarea>
+                    </div>
+                    <button onclick="addPeriodicTask()" style="padding: 10px; background: #4CAF50; color: white; border: none; cursor: pointer;">添加周期性任务</button>
+                </div>
+                
+                <div style="margin-top: 20px;">
+                    <h3>任务例外设置</h3>
+                    <div>
+                        <label for="exception-date">日期:</label>
+                        <input type="date" id="exception-date" style="padding: 8px;">
+                        <select id="exception-action" style="padding: 8px;">
+                            <option value="add">添加特殊任务</option>
+                            <option value="remove">取消原有任务</option>
+                        </select>
+                        <button onclick="addException()" style="padding: 8px; background: #2196F3; color: white; border: none; cursor: pointer;">应用</button>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 20px;">
+                    <h3>已有任务列表</h3>
+                    <table id="task-list" style="width: 100%;">
+                        <thead>
+                            <tr>
+                                <th>任务名称</th>
+                                <th>周期</th>
+                                <th>需要人数</th>
+                                <th>提醒内容</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="stats" class="tabcontent">
+                <h2>统计报表</h2>
+                
+                <div>
+                    <h3>岗位分配统计</h3>
+                    <div>
+                        <label for="stats-start">开始日期:</label>
+                        <input type="date" id="stats-start" style="padding: 8px;">
+                        <label for="stats-end">结束日期:</label>
+                        <input type="date" id="stats-end" style="padding: 8px;">
+                        <button onclick="generateStats()" style="padding: 8px; background: #4CAF50; color: white; border: none; cursor: pointer;">生成统计</button>
+                    </div>
+                    
+                    <div id="stats-result" style="margin-top: 20px;">
+                        <h4>员工岗位分配次数</h4>
+                        <table id="staff-stats" style="width: 100%;">
+                            <thead>
+                                <tr>
+                                    <th>员工</th>
+                                    <!-- 动态添加更多岗位 -->
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                        
+                        <h4 style="margin-top: 20px;">排班规则违反情况</h4>
+                        <ul id="rule-violations"></ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 示例数据 - 初始员工
+        const initialStaffData = {
+            group1: ['张三', '李四', '王五'],
+            group2: ['赵六', '钱七', '孙八'],
+            group3: ['周九', '吴十', '郑十一'],
+            support: ['辅助1', '辅助2', '辅助3'],
+            supportTeam: {
+                teamA: ['支援A1', '支援A2'],
+                teamB: ['支援B1', '支援B2'],
+                teamC: ['支援C1', '支援C2']
+            }
+        };
+
+        // 工作岗位模板
+        const jobTemplates = {
+            out: ['大岗位1', '大岗位2', '小岗位1', '小岗位2'],
+            in: ['大岗位3', '大岗位4', '小岗位3', '小岗位4'],
+            morning: ['大岗位5', '小岗位5', '小岗位6']
+        };
+
+        // 全局变量
+        let staffData = JSON.parse(JSON.stringify(initialStaffData));
+        let tasks = [];
+        let exceptions = [];
+        let scheduleRecords = [];
+        let currentUser = null;
+
+        // 页面加载时初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 设置默认日期为今天
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('schedule-date').value = today;
+            document.getElementById('stats-start').value = today;
+            document.getElementById('stats-end').value = today;
+            
+            // 尝试从本地存储加载数据
+            loadFromLocalStorage();
+            
+            // 如果没有数据，使用初始数据
+            if (!currentUser) {
+                currentUser = 'default';
+                saveToLocalStorage();
+            }
+            
+            // 加载员工数据
+            loadStaffData();
+        });
+
+        // 登录功能
+        function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            if (username && password) {
+                currentUser = username;
+                document.getElementById('login-section').style.display = 'none';
+                document.getElementById('app-section').style.display = 'block';
+                loadFromLocalStorage();
+                loadStaffData();
+                loadSchedule();
+            } else {
+                alert('请输入用户名和密码');
+            }
+        }
+
+        function logout() {
+            saveToLocalStorage();
+            document.getElementById('login-section').style.display = 'block';
+            document.getElementById('app-section').style.display = 'none';
+        }
+
+        // 加载员工数据
+        function loadStaffData() {
+            const group1El = document.getElementById('group1');
+            const group2El = document.getElementById('group2');
+            const group3El = document.getElementById('group3');
+            const supportEl = document.getElementById('support-group');
+            const supportTeamEl = document.getElementById('support-team');
+            
+            // 清空现有内容
+            group1El.innerHTML = '<h4>一组</h4>';
+            group2El.innerHTML = '<h4>二组</h4>';
+            group3El.innerHTML = '<h4>三组</h4>';
+            supportEl.innerHTML = '<h4>辅助人员</h4>';
+            supportTeamEl.innerHTML = '<h4>支援人员</h4>';
+            
+            // 添加一组人员
+            staffData.group1.forEach(staff => {
+                const item = document.createElement('div');
+                item.className = 'staff-item';
+                item.textContent = staff;
+                item.onclick = function() { toggleStaffSelection(this, staff); };
+                group1El.appendChild(item);
+            });
+            
+            // 添加二组人员
+            staffData.group2.forEach(staff => {
+                const item = document.createElement('div');
+                item.className = 'staff-item';
+                item.textContent = staff;
+                item.onclick = function() { toggleStaffSelection(this, staff); };
+                group2El.appendChild(item);
+            });
+            
+            // 添加三组人员
+            staffData.group3.forEach(staff => {
+                const item = document.createElement('div');
+                item.className = 'staff-item';
+                item.textContent = staff;
+                item.onclick = function() { toggleStaffSelection(this, staff); };
+                group3El.appendChild(item);
+            });
+            
+            // 添加辅助人员
+            staffData.support.forEach(staff => {
+                const item = document.createElement('div');
+                item.className = 'staff-item';
+                item.textContent = staff;
+                item.onclick = function() { toggleStaffSelection(this, staff); };
+                supportEl.appendChild(item);
+            });
+            
+            // 添加支援人员
+            for (const team in staffData.supportTeam) {
+                const teamHeader = document.createElement('h5');
+                teamHeader.textContent = team;
+                supportTeamEl.appendChild(teamHeader);
+                
+                staffData.supportTeam[team].forEach(staff => {
+                    const item = document.createElement('div');
+                    item.className = 'staff-item';
+                    item.textContent = staff;
+                    item.onclick = function() { toggleStaffSelection(this, staff); };
+                    supportTeamEl.appendChild(item);
+                });
+            }
+        }
+
+        // 切换员工选择状态
+        function toggleStaffSelection(element, staffName) {
+            element.classList.toggle('selected-staff');
+            updateSelectedStaff();
+        }
+
+        // 更新已选员工列表
+        function updateSelectedStaff() {
+            const selectedItems = document.querySelectorAll('.staff-item.selected-staff');
+            const selectedStaffEl = document.getElementById('selected-staff');
+            const selectedCountEl = document.getElementById('selected-count');
+            
+            selectedStaffEl.innerHTML = '';
+            selectedCountEl.textContent = selectedItems.length;
+            
+            selectedItems.forEach(item => {
+                const staffEl = document.createElement('div');
+                staffEl.className = 'staff-item';
+                staffEl.textContent = item.textContent;
+                staffEl.style.margin = '5px';
+                selectedStaffEl.appendChild(staffEl);
+            });
+        }
+
+        // 加载排班模板
+        function loadJobTemplates() {
+            const shiftType = document.getElementById('shift-type').value;
+            const jobTemplatesEl = document.getElementById('job-templates');
+            
+            jobTemplatesEl.innerHTML = '';
+            
+            jobTemplates[shiftType].forEach(job => {
+                const jobEl = document.createElement('div');
+                jobEl.className = 'job-assignment';
+                jobEl.innerHTML = `
+                    <div>
+                        <label>
+                            <input type="checkbox" name="job" value="${job}" onchange="updateJobAssignment(this, '${job}')">
+                            ${job}
+                        </label>
+                    </div>
+                    <div>
+                        <select name="staff-for-${job}" style="width: 100%; padding: 5px;" onchange="saveJobAssignment('${job}', this.value)">
+                            <option value="">-- 选择人员 --</option>
+                        </select>
+                    </div>
+                `;
+                jobTemplatesEl.appendChild(jobEl);
+                
+                // 添加已选人员到下拉菜单
+                const select = jobEl.querySelector(`select[name="staff-for-${job}"]`);
+                document.querySelectorAll('.staff-item.selected-staff').forEach(item => {
+                    const option = document.createElement('option');
+                    option.value = item.textContent;
+                    option.textContent = item.textContent;
+                    select.appendChild(option);
+                });
+            });
+        }
+
+        // 更新岗位分配
+        function updateJobAssignment(checkbox, job) {
+            const select = checkbox.parentElement.parentElement.querySelector(`select[name="staff-for-${job}"]`);
+            select.disabled = !checkbox.checked;
+            if (!checkbox.checked) {
+                select.value = '';
+            }
+        }
+
+        // 保存岗位分配
+        function saveJobAssignment(job, staff) {
+            // 这里会保存岗位分配信息
+            console.log(`分配 ${staff} 到 ${job}`);
+        }
+
+        // 加载排班数据
+        function loadSchedule() {
+            const date = document.getElementById('schedule-date').value;
+            console.log(`加载 ${date} 的排班数据`);
+            loadJobTemplates();
+            
+            // 检查当天的任务
+            const tasksForDate = getTasksForDate(date);
+            if (tasksForDate.length > 0) {
+                let taskMessage = `今天有以下任务:\n`;
+                tasksForDate.forEach(task => {
+                    taskMessage += `- ${task.name} (需要 ${task.requiredStaff} 人)\n`;
+                    if (task.reminder) {
+                        taskMessage += `  提醒: ${task.reminder}\n`;
+                    }
+                });
+                alert(taskMessage);
+            }
+        }
+
+        // 保存排班数据
+        function saveSchedule() {
+            const date = document.getElementById('schedule-date').value;
+            const shiftType = document.getElementById('shift-type').value;
+            const dailyTask = document.getElementById('daily-task').value;
+            
+            // 获取工作任务
+            const tasksForDate = getTasksForDate(date);
+            
+            // 检查人员是否足够
+            tasksForDate.forEach(task => {
+                const selectedCount = document.querySelectorAll('.staff-item.selected-staff').length;
+                if (selectedCount < task.requiredStaff) {
+                    alert(`警告: 任务"${task.name}"需要${task.requiredStaff}人，当前只选择了${selectedCount}人`);
+                }
+                
+                // 显示提醒
+                if (task.reminder) {
+                    alert(`提醒: ${task.reminder}`);
+                }
+            });
+            
+            // 保存数据
+            const scheduleData = {
+                date,
+                shiftType,
+                dailyTask,
+                assignedStaff: Array.from(document.querySelectorAll('.staff-item.selected-staff')).map(el => el.textContent),
+                tasks: tasksForDate
+            };
+            
+            // 添加到记录
+            scheduleRecords.push(scheduleData);
+            saveToLocalStorage();
+            
+            alert('排班已保存');
+        }
+
+        // 工作任务功能
+        function addPeriodicTask() {
+            const name = document.getElementById('task-name').value;
+            const requiredStaff = parseInt(document.getElementById('required-staff').value);
+            const reminder = document.getElementById('task-reminder').value;
+            
+            const days = [];
+            document.querySelectorAll('input[name="task-day"]:checked').forEach(checkbox => {
+                days.push(parseInt(checkbox.value));
+            });
+            
+            if (name && days.length > 0) {
+                tasks.push({
+                    id: Date.now(),
+                    name,
+                    days,
+                    requiredStaff,
+                    reminder
+                });
+                updateTaskList();
+                document.getElementById('task-name').value = '';
+                document.getElementById('required-staff').value = '1';
+                document.getElementById('task-reminder').value = '';
+                document.querySelectorAll('input[name="task-day"]').forEach(checkbox => {
+                    checkbox.checked = false;
+                });
+                saveToLocalStorage();
+            } else {
+                alert('请填写任务名称并选择至少一个周期日');
+            }
+        }
+
+        function addException() {
+            const date = document.getElementById('exception-date').value;
+            const action = document.getElementById('exception-action').value;
+            
+            if (date) {
+                if (action === 'add') {
+                    const taskId = prompt('请输入要添加的任务ID');
+                    if (taskId) {
+                        exceptions.push({
+                            date,
+                            action,
+                            taskId: parseInt(taskId)
+                        });
+                        alert('例外已添加');
+                        saveToLocalStorage();
+                    }
+                } else {
+                    exceptions.push({
+                        date,
+                        action
+                    });
+                    alert('例外已添加');
+                    saveToLocalStorage();
+                }
+            } else {
+                alert('请选择日期');
+            }
+        }
+
+        function updateTaskList() {
+            const tbody = document.querySelector('#task-list tbody');
+            tbody.innerHTML = '';
+            
+            tasks.forEach(task => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${task.name}</td>
+                    <td>${task.days.map(d => ['日','一','二','三','四','五','六'][d]).join(',')}</td>
+                    <td>${task.requiredStaff}</td>
+                    <td>${task.reminder || '无'}</td>
+                    <td><button onclick="deleteTask(${task.id})" style="padding: 5px; background: #f44336; color: white; border: none; cursor: pointer;">删除</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function deleteTask(id) {
+            if (confirm('确定要删除这个任务吗？')) {
+                tasks = tasks.filter(task => task.id !== id);
+                updateTaskList();
+                saveToLocalStorage();
+            }
+        }
+
+        function getTasksForDate(date) {
+            const d = new Date(date);
+            const day = d.getDay(); // 0是周日
+            const dateStr = d.toISOString().split('T')[0];
+            
+            // 检查例外
+            const dateExceptions = exceptions.filter(e => e.date === dateStr);
+            
+            // 获取正常任务
+            const normalTasks = tasks.filter(task => 
+                task.days.includes(day) && 
+                !dateExceptions.some(e => e.action === 'remove')
+            );
+            
+            // 添加例外任务
+            const extraTasks = dateExceptions
+                .filter(e => e.action === 'add')
+                .map(e => tasks.find(task => task.id == e.taskId))
+                .filter(Boolean);
+            
+            return [...normalTasks, ...extraTasks];
+        }
+
+        // 统计功能
+        function generateStats() {
+            const start = document.getElementById('stats-start').value;
+            const end = document.getElementById('stats-end').value;
+            
+            if (!start || !end) {
+                alert('请选择开始和结束日期');
+                return;
+            }
+            
+            // 过滤日期范围内的记录
+            const filteredRecords = scheduleRecords.filter(record => 
+                record.date >= start && record.date <= end
+            );
+            
+            // 统计员工岗位分配
+            const staffStats = {};
+            const jobStats = {};
+            
+            filteredRecords.forEach(record => {
+                // 这里简化处理，实际应根据岗位分配统计
+                record.assignedStaff.forEach(staff => {
+                    if (!staffStats[staff]) {
+                        staffStats[staff] = { total: 0 };
+                    }
+                    staffStats[staff].total++;
+                });
+            });
+            
+            // 显示员工统计
+            const staffTable = document.querySelector('#staff-stats tbody');
+            staffTable.innerHTML = '';
+            
+            // 更新表头
+            const thead = document.querySelector('#staff-stats thead tr');
+            thead.innerHTML = '<th>员工</th><th>排班次数</th>';
+            
+            // 添加数据行
+            Object.keys(staffStats).forEach(staff => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${staff}</td>
+                    <td>${staffStats[staff].total}</td>
+                `;
+                staffTable.appendChild(tr);
+            });
+            
+            // 检查排班规则违反情况
+            checkRuleViolations(filteredRecords);
+        }
+
+        function checkRuleViolations(records) {
+            const violations = [];
+            
+            // 这里简化处理，实际应检查辅助人员和支援人员的排班规则
+            if (records.length > 0) {
+                violations.push('请检查辅助人员是否遵守上2休2规则');
+                violations.push('请检查支援人员是否遵守上2休4规则');
+            }
+            
+            // 显示违反情况
+            const violationsList = document.getElementById('rule-violations');
+            violationsList.innerHTML = '';
+            
+            if (violations.length === 0) {
+                violationsList.innerHTML = '<li>未发现排班规则违反情况</li>';
+            } else {
+                violations.forEach(violation => {
+                    const li = document.createElement('li');
+                    li.textContent = violation;
+                    violationsList.appendChild(li);
+                });
+            }
+        }
+
+        // 本地存储功能
+        function saveToLocalStorage() {
+            if (!currentUser) return;
+            
+            const userData = {
+                staffData,
+                tasks,
+                exceptions,
+                scheduleRecords
+            };
+            
+            localStorage.setItem(`scheduleData_${currentUser}`, JSON.stringify(userData));
+        }
+
+        function loadFromLocalStorage() {
+            if (!currentUser) return;
+            
+            const savedData = localStorage.getItem(`scheduleData_${currentUser}`);
+            if (savedData) {
+                const userData = JSON.parse(savedData);
+                staffData = userData.staffData || JSON.parse(JSON.stringify(initialStaffData));
+                tasks = userData.tasks || [];
+                exceptions = userData.exceptions || [];
+                scheduleRecords = userData.scheduleRecords || [];
+                
+                updateTaskList();
+            }
+        }
+
+        // 切换标签页
+        function openTab(evt, tabName) {
+            const tabcontents = document.getElementsByClassName("tabcontent");
+            for (let i = 0; i < tabcontents.length; i++) {
+                tabcontents[i].style.display = "none";
+            }
+            
+            const tablinks = document.getElementsByClassName("tablinks");
+            for (let i = 0; i < tablinks.length; i++) {
+                tablinks[i].className = tablinks[i].className.replace(" active", "");
+            }
+            
+            document.getElementById(tabName).style.display = "block";
+            evt.currentTarget.className += " active";
+        }
+
+        // 初始化日期为今天
+        function setTodayAsDefault() {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('schedule-date').value = today;
+            document.getElementById('stats-start').value = today;
+            document.getElementById('stats-end').value = today;
+        }
+    </script>
+</body>
+</html>
